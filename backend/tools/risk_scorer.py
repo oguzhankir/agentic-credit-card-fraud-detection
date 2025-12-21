@@ -1,5 +1,12 @@
-from typing import Dict, Any
+from langchain.tools import tool
+from pydantic import BaseModel, Field
 
+class RiskScorerInput(BaseModel):
+    model_prediction: Dict[str, Any] = Field(description="Prediction output from model_predictor")
+    anomalies: Dict[str, Any] = Field(description="Anomaly detection results")
+    business_rules: Dict[str, bool] = Field(default={}, description="Applied business rules")
+
+@tool("calculate_risk_score", args_schema=RiskScorerInput)
 def calculate_risk_score(model_prediction: Dict[str, Any], anomalies: Dict[str, Any], business_rules: Dict[str, bool] = None) -> Dict[str, Any]:
     """
     Calculate 0-100 risk score based on weighted factors.

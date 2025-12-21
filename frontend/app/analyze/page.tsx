@@ -15,24 +15,68 @@ export default function AnalyzePage() {
     const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
     const [steps, setSteps] = useState<ReActStep[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [connectionId, setConnectionId] = useState<string | null>(null);
+    const socketRef = React.useRef<WebSocket | null>(null);
+
+    // WebSocket Connection Effect
+    React.useEffect(() => {
+        const wsUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace('http', 'ws') + '/ws';
+        const ws = new WebSocket(wsUrl);
+        socketRef.current = ws;
+
+        ws.onopen = () => {
+            console.log("Connected to WebSocket");
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'connected') {
+                    setConnectionId(msg.connection_id);
+                    console.log("WS Connection ID:", msg.connection_id);
+                } else if (msg.type === 'react_step') {
+                    console.log("Received step:", msg.data);
+                    setSteps(prev => [...prev, msg.data]);
+                } else if (msg.type === 'error') {
+                    console.error("WS Error:", msg.message);
+                }
+            } catch (e) {
+                console.error("Failed to parse WS message", e);
+            }
+        };
+
+        ws.onclose = () => console.log("Disconnected from WebSocket");
+
+        return () => {
+            if (ws.readyState === 1) ws.close();
+        };
+    }, []);
 
     const handleAnalyze = async (data: TransactionInput) => {
         setIsAnalyzing(true);
         setAnalysis(null);
-        setSteps([]);
+        setSteps([]); // Clear previous steps
         setError(null);
+
+        // Inject connection_id if available
+        const requestData = { ...data, connection_id: connectionId || undefined };
 
         try {
             // 1. Try Real API
             try {
-                const res = await analyzeTransaction(data);
+                const res = await analyzeTransaction(requestData);
 
-                if (res.react_steps) {
-                    for (const step of res.react_steps) {
-                        await new Promise(r => setTimeout(r, 600)); // Faster step replay
-                        setSteps(prev => [...prev, step]);
+                // If we have a connectionId, steps were streamed in real-time. 
+                // Don't replay them unless WS failed or we got 0 steps via WS.
+                if (!connectionId || steps.length === 0) {
+                    if (res.react_steps) {
+                        for (const step of res.react_steps) {
+                            await new Promise(r => setTimeout(r, 600));
+                            setSteps(prev => [...prev, step]);
+                        }
                     }
                 }
+
                 setAnalysis(res);
                 return;
             } catch (apiErr) {
@@ -63,7 +107,7 @@ export default function AnalyzePage() {
         <div className="container mx-auto p-6 max-w-7xl min-h-screen bg-gray-50/50">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Fraud Detection Agent</h1>
-                <p className="text-gray-500 mt-2">Hybrid AI Architecture: LLM Reasoning + ML Precision</p>
+                <p className="text-gray-500 mt-2">Hybrid AI Architecture: LLM Reasoning + ML Precision {connectionId && <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">● Live Connected</span>}</p>
             </div>
 
             {error && (

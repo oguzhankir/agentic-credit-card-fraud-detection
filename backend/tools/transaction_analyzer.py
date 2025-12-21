@@ -68,8 +68,16 @@ def analyze_geospatial(location: Dict[str, float], customer_history: Dict[str, A
         'explanation': f"{distance}km from home. {'Suspiciously far.' if is_far else 'Within normal range.'}"
     }
 
+from langchain.tools import tool
+from pydantic import BaseModel, Field
+
+class AnalyzerInput(BaseModel):
+    transaction: Dict[str, Any] = Field(description="Transaction details")
+    customer_history: Dict[str, Any] = Field(description="Customer transaction history")
+
+@tool("analyze_transaction_patterns", args_schema=AnalyzerInput)
 def calculate_all_anomalies(transaction: Dict[str, Any], customer_history: Dict[str, Any]) -> Dict[str, Any]:
-    """Aggregate all anomaly checks."""
+    """Aggregate all anomaly checks (amount, time, location)."""
     
     # 1. Amount
     amount_res = analyze_amount(

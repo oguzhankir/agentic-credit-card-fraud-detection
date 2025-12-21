@@ -7,6 +7,7 @@ export interface TransactionInput {
     location: Location;
     customer_id: string;
     customer_history?: CustomerHistory;
+    connection_id?: string;
 }
 
 export interface Location {

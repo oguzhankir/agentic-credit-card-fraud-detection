@@ -1,7 +1,12 @@
-from datetime import datetime
-from uuid import uuid4
-from typing import Dict, Any, List
+from langchain.tools import tool
+from pydantic import BaseModel, Field
 
+class AlertInput(BaseModel):
+    decision: Dict[str, Any] = Field(description="Final decision from coordinator")
+    transaction: Dict[str, Any] = Field(description="Transaction details")
+    risk_score: int = Field(description="Risk score 0-100")
+
+@tool("generate_alert", args_schema=AlertInput)
 def generate_alert(decision: Dict[str, Any], transaction: Dict[str, Any], risk_score: int) -> Dict[str, Any]:
     """Generate structured alert object."""
     

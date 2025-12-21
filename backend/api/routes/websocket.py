@@ -5,14 +5,17 @@ import logging
 
 router = APIRouter(tags=["websocket"]) # No prefix typically for WS, or /ws
 
-@router.websocket("/ws/analyze/{connection_id}")
-async def websocket_analyze(websocket: WebSocket, connection_id: str):
+from uuid import uuid4
+
+@router.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
     # Accept connection
     if not hasattr(websocket.app.state, 'ws_manager'):
         await websocket.close()
         return
 
     ws_manager = websocket.app.state.ws_manager
+    connection_id = str(uuid4())
     await ws_manager.connect(websocket, connection_id)
     
     try:

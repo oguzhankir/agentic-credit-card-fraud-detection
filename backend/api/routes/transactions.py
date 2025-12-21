@@ -14,16 +14,27 @@ async def analyze_transaction(
     request: Request
 ):
     try:
-        # Get engine (instantiate new for isolation or use singleton if stateless)
-        # ReActEngine is mostly stateless but holds 'history' which clears per run
+        # Get engine
         engine = ReActEngine()
         
         # Parse inputs
         tx_dict = transaction.dict()
         cust_history = tx_dict.pop('customer_history', {}) or {}
+        connection_id = tx_dict.pop('connection_id', None)
         
-        # Run analysis
-        result = engine.run(tx_dict, cust_history)
+        callbacks = []
+        if connection_id:
+            from backend.services.callbacks import WebSocketCallbackHandler
+            
+            # Access WS manager from app state
+            ws_manager = request.app.state.ws_manager
+            
+            # Create callback
+            ws_callback = WebSocketCallbackHandler(ws_manager, connection_id)
+            callbacks.append(ws_callback)
+        
+        # Run analysis ASYNC
+        result = await engine.arun(tx_dict, cust_history, callbacks=callbacks)
         
         # Return
         return AnalysisResponse(**result)

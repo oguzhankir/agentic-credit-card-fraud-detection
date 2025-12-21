@@ -9,6 +9,7 @@ class Decision(BaseModel):
     key_factors: List[str]
 
 class ModelPrediction(BaseModel):
+    model_config = {"protected_namespaces": ()}
     fraud_probability: float = Field(..., ge=0, le=1)
     binary_prediction: Literal[0, 1]
     model_name: str
@@ -33,6 +34,7 @@ class Anomalies(BaseModel):
     red_flags: List[str]
 
 class AnalysisResponse(BaseModel):
+    model_config = {"protected_namespaces": ()}
     transaction_id: str
     analysis_timestamp: str
     decision: Decision

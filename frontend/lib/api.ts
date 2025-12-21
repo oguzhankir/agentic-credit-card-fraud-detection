@@ -3,7 +3,7 @@ import { TransactionInput, AnalysisResponse } from './types';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export async function analyzeTransaction(transaction: TransactionInput): Promise<AnalysisResponse> {
-    const response = await fetch(`${API_URL}/api/analyze`, {
+    const response = await fetch(`${API_URL}/api/transactions/analyze`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

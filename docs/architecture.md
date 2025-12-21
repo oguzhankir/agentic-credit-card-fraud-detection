@@ -6,39 +6,21 @@ Sentinel AI employs a **Hybrid Agentic Architecture** that decouples cognitive r
 
 ## Architecture Guidelines
 
-### 1. The 5-Phase Analysis Loop
+### Agent Framework: LangChain & LangGraph
 
-Every transaction undergoes a strictly defined ReAct (Reasoning + Acting) loop orchestrated by the `CoordinatorAgent`.
+The system implements a **Multi-Agent Architecture** orchestrated by LangChain.
 
-#### Phase 1: Planning (LLM)
-- **Input:** Raw transaction data + Customer History.
-- **Agent:** Coordinator (LLM).
-- **Goal:** Formulate an investigation strategy.
-- **Why:** To determine which anomalies matter most for this specific customer segment (e.g., ignoring location anomalies for a frequent traveler).
+### The 3 Agents
 
-#### Phase 2: Data Analysis (Python + LLM)
-- **Action (Python):** `TransactionAnalyzer` calculates Z-scores for amount, checks time patterns, and measures geospatial distance.
-- **Observation (LLM):** `DataAgent` interprets these numbers.
-  - *Example:* "A Z-score of 3.5 is statistically significant, but for a wealthy client on a weekend, it might be a false positive."
+1.  **Coordinator Agent:** The orchestrator. It manages the workflow, delegates tasks to specialized agents, and makes the final decision.
+2.  **Data Agent:** Specialized in pattern analysis using statistical tools (`detect_anomalies`, `check_velocity`).
+3.  **Model Agent:** Specialized in ML operations, running predictions and interpreting model outputs (`predict_fraud`, `explain_features`).
 
-#### Phase 3: Model Prediction (Python + LLM)
-- **Action (Python):** `ModelPredictor` executes the ensemble (XGBoost, LightGBM, RandomForest).
-  - *Latency:* <50ms.
-- **Observation (LLM):** `ModelAgent` interprets the consensus.
-  - *Example:* "High agreement between XGBoost (98%) and RF (95%) indicates strong signal."
+### Workflow (Hierarchical & Graph-Based)
 
-#### Phase 4: Risk Scoring (Python)
-- **Action:** `RiskScorer` computes a deterministic score (0-100) combining:
-  - Model Probability (50%)
-  - Anomaly Severity (40%)
-  - Business Rules (10%)
-- **Why:** To provide a reliable sorting mechanism for human analysts.
-
-#### Phase 5: Decision (LLM)
-- **Agent:** Coordinator.
-- **Goal:** Final Verdict (APPROVE / BLOCK / MANUAL_REVIEW).
-- **Input:** All previous steps.
-- **Output:** Structured JSON with reasoning.
+The system supports two execution modes:
+1.  **Hierarchical ReAct:** The Coordinator Agent calls Data and Model agents sequentially using LangChain `AgentExecutor`.
+2.  **LangGraph (Advanced):** A defined `StateGraph` where agents act as nodes, allowing for cyclic or conditional flows (available in compatible environments).
 
 ## Failover & Resiliency
 
