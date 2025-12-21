@@ -1,0 +1,39 @@
+# General
+.DS_Store
+*.log
+.env
+.idea/
+.vscode/
+/.venv
+
+# Python / ML Pipeline
+ml-pipeline/data/
+# Python / Backend
+backend/**/__pycache__/
+backend/**/*.py[cod]
+backend/**/*.so
+backend/.venv
+backend/venv
+backend/env
+backend/build/
+backend/dist/
+backend/*.egg-info
+backend/.pytest_cache/
+backend/.coverage
+backend/htmlcov/
+
+# Node.js / Next.js / Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.npm/
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+
+# Yarn / NPM
+frontend/yarn-error.log
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.pnp.*

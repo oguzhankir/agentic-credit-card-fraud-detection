@@ -1,0 +1,19 @@
+{
+  "daily": {
+    "2025-12-21": {
+      "total_calls": 13,
+      "total_tokens": 4502,
+      "estimated_cost": 0.003774,
+      "by_agent": {
+        "coordinator": 13
+      },
+      "by_purpose": {
+        "PLANNING": 4,
+        "INTERPRETATION": 8,
+        "DECISION": 1
+      }
+    }
+  },
+  "weekly": {},
+  "monthly": {}
+}

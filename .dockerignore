@@ -1,0 +1,38 @@
+# Version Control
+.git
+.gitignore
+
+# Docker
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Dependencies and Build Artifacts
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/.venv
+**/venv
+**/env
+**/.next
+**/out
+**/build
+**/dist
+
+# Environment Variables
+.env
+**/.env
+**/.env.local
+**/.env.*.local
+
+# IDE and OS
+.idea
+.vscode
+.DS_Store
+*.swp
+*.log
+
+# Testing
+.pytest_cache
+.coverage
+htmlcov
