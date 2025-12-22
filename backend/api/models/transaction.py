@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, validator
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Union
 from datetime import datetime
 from uuid import uuid4
 
@@ -28,6 +28,23 @@ class TransactionInput(BaseModel):
     customer_id: str
     customer_history: Optional[CustomerHistory] = None
     connection_id: Optional[str] = None
+    
+    # Extended Raw Fields for Simulation/Full Pipeline
+    cc_num: Optional[str] = None
+    first: Optional[str] = None
+    last: Optional[str] = None
+    gender: Optional[str] = None
+    street: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip_code: Optional[Union[str, int]] = Field(None, alias="zip")
+    city_pop: Optional[int] = None
+    job: Optional[str] = None
+    dob: Optional[str] = None
+    trans_num: Optional[str] = None
+    unix_time: Optional[int] = None
+    merch_lat: Optional[float] = None
+    merch_long: Optional[float] = None
     
     @validator('transaction_id', pre=True, always=True)
     def set_transaction_id(cls, v):

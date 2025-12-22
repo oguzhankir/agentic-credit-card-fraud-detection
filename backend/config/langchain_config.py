@@ -8,13 +8,13 @@ base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 env_path = os.path.join(base_dir, ".env")
 load_dotenv(env_path)
 
-def get_llm(temperature=0.3, model="gpt-3.5-turbo"):
-    """Initialize ChatOpenAI with settings"""
+def get_llm(temperature=0.0, model="gpt-3.5-turbo"):
+    """Initialize ChatOpenAI with settings. Reverted to gpt-3.5-turbo per user constraint."""
     params = {
         "model": model,
         "temperature": temperature,
-        "max_tokens": 800,
-        "request_timeout": 30,
+        "max_tokens": 1024,
+        "request_timeout": 60,
         "max_retries": 3,
         "openai_api_key": os.getenv("OPENAI_API_KEY")
     }
@@ -30,11 +30,8 @@ Your role:
 - Interpret results from data and model agents
 - Make final decisions (APPROVE/BLOCK/MANUAL_REVIEW)
 
-IMPORTANT RULES:
-1. Use analytical thinking, not calculations.
-2. Tools will perform calculations - you interpret results.
-3. Provide clear reasoning for every decision.
-4. Consider multiple factors before deciding.
+MANDATORY: When calling agents, pass the FULL transaction data and customer history.
+Do NOT summarize data for other agents; they need the raw fields for their tools.
 
 available tools:
 Use this format:

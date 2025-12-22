@@ -42,3 +42,4 @@ async def analyze_transaction(
     except Exception as e:
         logger.error(f"Analysis failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+

@@ -33,18 +33,32 @@ class ModelAgent(BaseAgent):
         Returns:
             Dict with predictions and interpretation
         """
+        loc = transaction_features.get('location', {})
+        hist = customer_history or {}
+        
+        # Ensure state is never None for strict validation
+        state_val = loc.get('state') or 'NY'
+        
         input_text = f"""
-        Analyze this transaction for fraud.
+        Analyze this transaction for fraud with the 'predict_fraud' tool.
         
-        TRANSACTION DATA:
-        {transaction_features}
-        
-        CUSTOMER HISTORY:
-        {customer_history}
-        
-        INSTRUCTIONS:
-        1. Run 'predict_fraud' by passing TRANSACTION DATA to 'transaction_features' AND CUSTOMER HISTORY to 'customer_history'.
-        2. Explain if the model probability indicates risk.
+        FIELDS TO PASS:
+        - amount: {transaction_features.get('amount')}
+        - merchant: {transaction_features.get('merchant')}
+        - category: {transaction_features.get('category')}
+        - time: {transaction_features.get('time')}
+        - lat: {loc.get('lat', 40.7128)}
+        - long: {loc.get('long', -74.006)}
+        - distance_from_home: {loc.get('distance_from_home', 0.0)}
+        - state: {state_val}
+        - city_pop: {transaction_features.get('city_pop', 10000)}
+        - dob: {transaction_features.get('dob', '1980-01-01')}
+        - gender: {transaction_features.get('gender', 'F')}
+        - avg_amount: {hist.get('avg_amount', 100.0)}
+        - std_amount: {hist.get('std_amount', 20.0)}
+        - transaction_count: {hist.get('transaction_count', 50)}
+
+        MANDATORY: Call 'predict_fraud' using EXACTLY the fields above.
         """
         
         result = self.execute(input_text)
@@ -67,14 +81,24 @@ class ModelAgent(BaseAgent):
         for step in result.get("steps", []):
             if step["type"] == "OBSERVATION":
                  try:
-                    import json
-                    content_str = step["content"].replace("'", '"').replace("True", "true").replace("False", "false")
-                    obs = json.loads(content_str)
-                    
-                    if "fraud_probability" in obs: # From predict_fraud tool
+                    import ast
+                    # Observations are often string representations of dicts
+                    content = step["content"]
+                    if isinstance(content, str):
+                        # Try ast.literal_eval first as it handles Python dicts/bools/none better
+                        try:
+                            obs = ast.literal_eval(content)
+                        except:
+                            import json
+                            content_str = content.replace("'", '"').replace("True", "true").replace("False", "false")
+                            obs = json.loads(content_str)
+                    else:
+                        obs = content
+                        
+                    if isinstance(obs, dict) and "fraud_probability" in obs:
                          return obs
-                 except:
-                    pass
+                 except Exception as e:
+                    logger.warning(f"Failed to extract prediction from observation: {e}")
         
         return prediction
     
@@ -91,21 +115,32 @@ class ModelAgent(BaseAgent):
         """
         Async run ML model and interpret predictions
         """
+        loc = transaction_features.get('location', {})
+        hist = customer_history or {}
+        
+        # Ensure state is never None for strict validation
+        state_val = loc.get('state') or 'NY'
+        
         input_text = f"""
-        Analyze this transaction for fraud with high precision.
+        Analyze this transaction for fraud with the 'predict_fraud' tool.
         
-        OFFICIAL TRANSACTION DATA:
-        {transaction_features}
-        
-        CUSTOMER BEHAVIORAL HISTORY:
-        {customer_history}
-        
-        REQUIRED ACTION:
-        You MUST call the 'predict_fraud' tool. 
-        - Pass 'OFFICIAL TRANSACTION DATA' as 'transaction_features'.
-        - Pass 'CUSTOMER BEHAVIORAL HISTORY' as 'customer_history'.
-        
-        Interpret the resulting fraud_probability and decide if it is risky.
+        FIELDS TO PASS:
+        - amount: {transaction_features.get('amount')}
+        - merchant: {transaction_features.get('merchant')}
+        - category: {transaction_features.get('category')}
+        - time: {transaction_features.get('time')}
+        - lat: {loc.get('lat', 40.7128)}
+        - long: {loc.get('long', -74.006)}
+        - distance_from_home: {loc.get('distance_from_home', 0.0)}
+        - state: {state_val}
+        - city_pop: {transaction_features.get('city_pop', 10000)}
+        - dob: {transaction_features.get('dob', '1980-01-01')}
+        - gender: {transaction_features.get('gender', 'F')}
+        - avg_amount: {hist.get('avg_amount', 100.0)}
+        - std_amount: {hist.get('std_amount', 20.0)}
+        - transaction_count: {hist.get('transaction_count', 50)}
+
+        MANDATORY: Call 'predict_fraud' using EXACTLY the fields above.
         """
         
         result = await self.aexecute(input_text, callbacks=callbacks)

@@ -2,13 +2,13 @@ from typing import Dict, Any, Generator
 from datetime import datetime
 import logging
 
-# New Coordinator Agent
+# Original Coordinator Agent
 from backend.agents.coordinator_agent import CoordinatorAgent
 
 logger = logging.getLogger(__name__)
 
 class ReActEngine:
-    """Wrapper specifically for the LangChain Coordinator Agent"""
+    """Wrapper for the Coordinator Agent"""
     
     def __init__(self):
         self.coordinator = CoordinatorAgent()
@@ -31,11 +31,11 @@ class ReActEngine:
 
     async def arun(self, transaction: Dict[str, Any], customer_history: Dict[str, Any] = {}, callbacks: list = None) -> Dict[str, Any]:
         """
-        Async execute analysis via LangChain Agent.
+        Async execute analysis via Coordinator Agent.
         """
         start_time = datetime.now()
         
-        # Call the LangChain agent async
+        # Call the coordinator agent async
         result = await self.coordinator.analyze_async(transaction, customer_history, callbacks=callbacks)
         
         # Ensure we return expected format

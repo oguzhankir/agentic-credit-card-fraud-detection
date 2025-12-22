@@ -43,15 +43,20 @@ class DataAgent(BaseAgent):
             except:
                 transaction['hour'] = 12
 
+        location = transaction.get('location', {})
+        distance = transaction.get('distance_km') or (location.get('distance_from_home', 0) if isinstance(location, dict) else 0)
+
         input_text = f"""
-        Analyze this transaction for suspicious patterns:
-        
+        Analyze this transaction for suspicious patterns. Use COMMON SENSE:
+        For example, a high-distance transaction for a low-cost category like 'food_dining'
+        with a massive amount is almost certainly fraud.
+
         Transaction:
         - Amount: ${transaction.get('amount')}
         - Time: {transaction.get('time')} (hour: {transaction.get('hour')})
         - Merchant: {transaction.get('merchant')}
         - Category: {transaction.get('category')}
-        - Distance from home: {transaction.get('distance_km', 0)} km
+        - Distance from home: {distance} km
         
         Customer Baseline:
         - Average amount: ${customer_history.get('avg_amount', 120)}
@@ -133,15 +138,20 @@ class DataAgent(BaseAgent):
             except:
                 transaction['hour'] = 12
 
+        location = transaction.get('location', {})
+        distance = transaction.get('distance_km') or (location.get('distance_from_home', 0) if isinstance(location, dict) else 0)
+
         input_text = f"""
-        Analyze this transaction for suspicious patterns:
-        
+        Analyze this transaction for suspicious patterns. Use COMMON SENSE:
+        For example, a high-distance transaction for a low-cost category like 'food_dining'
+        with a massive amount is almost certainly fraud.
+
         Transaction:
         - Amount: ${transaction.get('amount')}
         - Time: {transaction.get('time')} (hour: {transaction.get('hour')})
         - Merchant: {transaction.get('merchant')}
         - Category: {transaction.get('category')}
-        - Distance from home: {transaction.get('distance_km', 0)} km
+        - Distance from home: {distance} km
         
         Customer Baseline:
         - Average amount: ${customer_history.get('avg_amount', 120)}

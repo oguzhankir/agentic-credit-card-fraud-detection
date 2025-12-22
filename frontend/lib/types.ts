@@ -8,6 +8,22 @@ export interface TransactionInput {
     customer_id: string;
     customer_history?: CustomerHistory;
     connection_id?: string;
+
+    // Raw Fields for Simulation
+    cc_num?: string;
+    first?: string;
+    last?: string;
+    gender?: string;
+    street?: string;
+    zip?: string | number;
+    city?: string;
+    state?: string;
+    job?: string;
+    dob?: string;
+    trans_num?: string;
+    unix_time?: number;
+    merch_lat?: number;
+    merch_long?: number;
 }
 
 export interface Location {

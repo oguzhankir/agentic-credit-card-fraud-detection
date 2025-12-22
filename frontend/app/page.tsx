@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight, ShieldCheck, Activity, Brain } from "lucide-react";
-import { Button } from '@/components/ui/button';
+import { Button } from '../components/ui/button';
 
 export default function Home() {
   return (
@@ -18,8 +18,8 @@ export default function Home() {
           </span>
         </div>
         <div className="flex gap-4 text-gray-400">
-          <Link href="#" className="hover:text-white transition-colors">Documentation</Link>
-          <Link href="#" className="hover:text-white transition-colors">API Reference</Link>
+          <Link href="/docs/business" className="hover:text-white transition-colors">Documentation</Link>
+          <Link href="/docs/architecture" className="hover:text-white transition-colors">Architecture</Link>
         </div>
       </div>
 
@@ -44,7 +44,7 @@ export default function Home() {
               Launch Console <ArrowRight className="ml-2 w-4 h-4" />
             </Button>
           </Link>
-          <Link href="docs/business_justification.md" target="_blank">
+          <Link href="/docs/architecture">
             <Button variant="ghost" className="text-gray-300 hover:text-white hover:bg-white/5">
               Architecture Docs
             </Button>
@@ -60,8 +60,8 @@ export default function Home() {
         />
         <FeatureCard
           icon={<Activity className="w-8 h-8 text-emerald-400" />}
-          title="Statistical Precision"
-          description="Ensemble models (XGBoost, LightGBM) handle high-velocity calculations with <50ms latency."
+          title="ML Intelligence"
+          description="Machine Learning Models (e.g., XGBoost, LightGBM, Random Forest) handle high-velocity inference with minimal latency."
         />
         <FeatureCard
           icon={<ShieldCheck className="w-8 h-8 text-purple-400" />}

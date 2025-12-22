@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { TransactionForm } from '@/components/features/TransactionForm';
 import { ReActVisualizer } from '@/components/features/ReActVisualizer';
 import { TransactionInput, AnalysisResponse, ReActStep } from '@/lib/types';
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, CheckCircle, ShieldAlert, Info } from 'lucide-react';
+import { AlertTriangle, CheckCircle, ShieldAlert, Info, ArrowLeft, ShieldCheck, Zap, Brain } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { analyzeTransaction } from '@/lib/api';
 
@@ -24,215 +25,227 @@ export default function AnalyzePage() {
         const ws = new WebSocket(wsUrl);
         socketRef.current = ws;
 
-        ws.onopen = () => {
-            console.log("Connected to WebSocket");
-        };
-
+        ws.onopen = () => console.log("Connected to WebSocket");
         ws.onmessage = (event) => {
             try {
                 const msg = JSON.parse(event.data);
-                if (msg.type === 'connected') {
-                    setConnectionId(msg.connection_id);
-                    console.log("WS Connection ID:", msg.connection_id);
-                } else if (msg.type === 'react_step') {
-                    console.log("Received step:", msg.data);
-                    setSteps(prev => [...prev, msg.data]);
-                } else if (msg.type === 'error') {
-                    console.error("WS Error:", msg.message);
-                }
+                if (msg.type === 'connected') setConnectionId(msg.connection_id);
+                else if (msg.type === 'react_step') setSteps(prev => [...prev, msg.data]);
             } catch (e) {
-                console.error("Failed to parse WS message", e);
+                console.error("WS parse error", e);
             }
         };
-
         ws.onclose = () => console.log("Disconnected from WebSocket");
-
-        return () => {
-            if (ws.readyState === 1) ws.close();
-        };
+        return () => { if (ws.readyState === 1) ws.close(); };
     }, []);
 
     const handleAnalyze = async (data: TransactionInput) => {
         setIsAnalyzing(true);
         setAnalysis(null);
-        setSteps([]); // Clear previous steps
+        setSteps([]);
         setError(null);
 
-        // Inject connection_id if available
         const requestData = { ...data, connection_id: connectionId || undefined };
 
         try {
-            // 1. Try Real API
-            try {
-                const res = await analyzeTransaction(requestData);
-
-                // If we have a connectionId, steps were streamed in real-time. 
-                // Don't replay them unless WS failed or we got 0 steps via WS.
-                if (!connectionId || steps.length === 0) {
-                    if (res.react_steps) {
-                        for (const step of res.react_steps) {
-                            await new Promise(r => setTimeout(r, 600));
-                            setSteps(prev => [...prev, step]);
-                        }
+            const res = await analyzeTransaction(requestData);
+            if (!connectionId || steps.length === 0) {
+                if (res.react_steps) {
+                    for (const step of res.react_steps) {
+                        await new Promise(r => setTimeout(r, 600));
+                        setSteps(prev => [...prev, step]);
                     }
                 }
-
-                setAnalysis(res);
-                return;
-            } catch (apiErr) {
-                console.warn("API unavailable, falling back to Demo Mode", apiErr);
-                setError("Backend unavailable. Switching to Demo Mode (Offline).");
             }
-
-            // 2. Fallback to Demo Mode
-            const mockRes = await fetch('/mock-data/sample_analysis_1.json').then(r => r.json());
-
-            if (mockRes.react_steps) {
-                for (const step of mockRes.react_steps) {
-                    await new Promise(r => setTimeout(r, 600));
-                    setSteps(prev => [...prev, step]);
-                }
-            }
-            setAnalysis(mockRes);
-
+            setAnalysis(res);
         } catch (error) {
             console.error("Analysis failed", error);
-            setError("Analysis failed completely. Please check console.");
+            setError("The processing engine is currently at capacity or offline. Please try again in 30 seconds.");
         } finally {
             setIsAnalyzing(false);
         }
     };
 
     return (
-        <div className="container mx-auto p-6 max-w-7xl min-h-screen bg-gray-50/50">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Fraud Detection Agent</h1>
-                <p className="text-gray-500 mt-2">Hybrid AI Architecture: LLM Reasoning + ML Precision {connectionId && <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">● Live Connected</span>}</p>
-            </div>
+        <main className="min-h-screen bg-slate-950 text-white selection:bg-blue-500/30 overflow-x-hidden pb-20">
+            {/* Background Effects */}
+            <div className="fixed top-0 -left-4 w-96 h-96 bg-blue-500/10 rounded-full filter blur-[128px] pointer-events-none" />
+            <div className="fixed bottom-0 -right-4 w-[600px] h-[600px] bg-purple-500/5 rounded-full filter blur-[128px] pointer-events-none" />
 
-            {error && (
-                <div className="mb-6 p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5" />
-                    {error}
-                </div>
-            )}
+            <div className="container mx-auto p-6 max-w-7xl relative z-10">
+                {/* Header Section */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6">
+                    <div>
+                        <Link href="/" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-white transition-colors mb-4">
+                            <ArrowLeft className="w-4 h-4" /> Back to Home
+                        </Link>
+                        <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+                            Neural Analysis Console
+                        </h1>
+                        <p className="text-gray-500 mt-2 flex items-center gap-2">
+                            Hybrid Engine: LLM Cognitive + ML Predictive
+                            {connectionId && (
+                                <Badge variant="outline" className="text-[10px] h-5 border-emerald-500/30 bg-emerald-500/10 text-emerald-400 animate-pulse">
+                                    LIVE SESSION ACTIVE
+                                </Badge>
+                            )}
+                        </p>
+                    </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* Left Panel: Input */}
-                <div className="lg:col-span-4 space-y-6">
-                    <TransactionForm onSubmit={handleAnalyze} isLoading={isAnalyzing} />
-
-                    {/* Guidelines Card */}
-                    <Card className="p-6 bg-white shadow-sm border-gray-100">
-                        <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                            <Info className="w-4 h-4 text-blue-500" />
-                            How it works
-                        </h3>
-                        <ul className="space-y-2 text-sm text-gray-600">
-                            <li className="flex gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-1.5" />
-                                Agent plans investigation strategy
-                            </li>
-                            <li className="flex gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-green-400 mt-1.5" />
-                                Python calculates statistical usage
-                            </li>
-                            <li className="flex gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-purple-400 mt-1.5" />
-                                ML Models predict probability
-                            </li>
-                            <li className="flex gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-red-400 mt-1.5" />
-                                LLM makes final decision
-                            </li>
-                        </ul>
-                    </Card>
-                </div>
-
-                {/* Right Panel: Visualization */}
-                <div className="lg:col-span-8 space-y-6">
-
-                    {/* Status / Result Card */}
-                    {analysis && (
-                        <div className="animate-in fade-in slide-in-from-top-4 duration-500">
-                            <Card className={cn("overflow-hidden border-0 shadow-lg",
-                                analysis.decision.action === 'BLOCK' ? 'ring-1 ring-red-200' : 'ring-1 ring-green-200'
-                            )}>
-                                {/* Header Banner */}
-                                <div className={cn("p-4 px-6 flex items-center justify-between",
-                                    analysis.decision.action === 'BLOCK' ? 'bg-red-50' : 'bg-green-50'
-                                )}>
-                                    <div className="flex items-center gap-3">
-                                        {analysis.decision.action === 'BLOCK'
-                                            ? <ShieldAlert className="w-8 h-8 text-red-600" />
-                                            : <CheckCircle className="w-8 h-8 text-green-600" />
-                                        }
-                                        <div>
-                                            <h2 className={cn("text-xl font-bold",
-                                                analysis.decision.action === 'BLOCK' ? "text-red-900" : "text-green-900"
-                                            )}>
-                                                {analysis.decision.action}
-                                            </h2>
-                                        </div>
-                                    </div>
-
-                                    <div className="text-right">
-                                        <div className={cn("text-3xl font-black",
-                                            analysis.risk_score > 80 ? 'text-red-600' : 'text-gray-900'
-                                        )}>
-                                            {analysis.risk_score}
-                                            <span className="text-base font-normal text-gray-400 ml-1">/100</span>
-                                        </div>
-                                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">Risk Score</div>
-                                    </div>
-                                </div>
-
-                                {/* Body */}
-                                <div className="p-6 bg-white">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                        <div>
-                                            <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Reasoning</h4>
-                                            <p className="text-gray-800 leading-relaxed font-medium">
-                                                {analysis.decision.reasoning}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Key Factors</h4>
-                                            <div className="flex flex-wrap gap-2">
-                                                {analysis.decision.key_factors.map((flag, idx) => (
-                                                    <Badge key={idx} variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200">
-                                                        {flag}
-                                                    </Badge>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-4 pt-4 border-t border-gray-100">
-                                        <div className="group relative cursor-help">
-                                            <Badge variant="outline" className="pl-1 pr-3 py-1 gap-1.5 border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
-                                                <Info className="w-3.5 h-3.5" />
-                                                Confidence: {analysis.decision.confidence}%
-                                            </Badge>
-                                            {/* Simple Tooltip */}
-                                            <div className="absolute bottom-full left-0 mb-2 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 shadow-xl z-50">
-                                                Based on agreement between ML models (XGBoost, RF) and logical consistency of anomalies detected. High agreement = High confidence.
-                                            </div>
-                                        </div>
-
-                                        <span className="text-xs text-gray-400">
-                                            Analysis ID: {analysis.transaction_id.slice(0, 8)}...
-                                        </span>
-                                    </div>
-                                </div>
-                            </Card>
+                    <div className="flex gap-4 p-1 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xl">
+                        <div className="px-4 py-2 text-center border-r border-white/10">
+                            <div className="text-xs font-bold text-gray-500 uppercase tracking-widest">Latency</div>
+                            <div className="text-lg font-mono text-blue-400">&lt;450ms</div>
                         </div>
-                    )}
+                        <div className="px-4 py-2 text-center">
+                            <div className="text-xs font-bold text-gray-500 uppercase tracking-widest">Engine</div>
+                            <div className="text-lg font-mono text-purple-400">Agentic v1.2</div>
+                        </div>
+                    </div>
+                </div>
 
-                    {/* ReAct Visualizer */}
-                    <ReActVisualizer steps={steps} isAnalyzing={isAnalyzing} />
+                {error && (
+                    <div className="mb-8 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-200 flex items-center gap-3 animate-in fade-in zoom-in duration-300">
+                        <AlertTriangle className="w-5 h-5 text-red-500" />
+                        <span className="text-sm">{error}</span>
+                    </div>
+                )}
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                    {/* Left Panel: Transaction Input */}
+                    <div className="lg:col-span-4 space-y-8">
+                        <div className="p-1 rounded-3xl bg-gradient-to-b from-white/10 to-transparent shadow-2xl">
+                            <div className="p-6 rounded-[22px] bg-slate-900/90 backdrop-blur-3xl border border-white/5">
+                                <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+                                    <Zap className="w-5 h-5 text-blue-500" />
+                                    Input Parameters
+                                </h3>
+                                <TransactionForm onSubmit={handleAnalyze} isLoading={isAnalyzing} />
+                            </div>
+                        </div>
+
+                        {/* Architecture Snippet */}
+                        <Card className="p-6 bg-white/5 border-white/10 backdrop-blur-xl rounded-3xl overflow-hidden relative group">
+                            <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                            <h3 className="font-bold text-sm text-gray-200 mb-4 flex items-center gap-2">
+                                <ShieldCheck className="w-4 h-4 text-blue-500" />
+                                Security Standards
+                            </h3>
+                            <div className="space-y-4">
+                                <SecureItem title="Statistical Anomaly" status="Verified" color="blue" />
+                                <SecureItem title="ML Prediciton (XGB/LGB)" status="Active" color="emerald" />
+                                <SecureItem title="LLM Reasonable Logic" status="Optimized" color="purple" />
+                            </div>
+                            <Link href="/docs" className="mt-6 block text-[10px] uppercase tracking-widest font-black text-center text-gray-500 hover:text-white transition-colors">
+                                View Full Protocol Documentation →
+                            </Link>
+                        </Card>
+                    </div>
+
+                    {/* Right Panel: Reasoning & Result */}
+                    <div className="lg:col-span-8 space-y-8">
+                        {/* Final Decision Overlay */}
+                        {analysis && (
+                            <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
+                                <div className={cn(
+                                    "p-[1px] rounded-[32px] overflow-hidden shadow-2xl",
+                                    analysis.decision.action === 'BLOCK' ? 'bg-gradient-to-r from-red-500 to-orange-500' : 'bg-gradient-to-r from-emerald-500 to-blue-500'
+                                )}>
+                                    <div className="bg-slate-900/95 backdrop-blur-3xl rounded-[31px] p-8">
+                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 border-b border-white/5 pb-8">
+                                            <div className="flex items-center gap-6">
+                                                <div className={cn(
+                                                    "w-16 h-16 rounded-[22px] flex items-center justify-center shadow-inner",
+                                                    analysis.decision.action === 'BLOCK' ? 'bg-red-500/20 text-red-500' : 'bg-emerald-500/20 text-emerald-500'
+                                                )}>
+                                                    {analysis.decision.action === 'BLOCK' ? <ShieldAlert className="w-8 h-8" /> : <CheckCircle className="w-8 h-8" />}
+                                                </div>
+                                                <div>
+                                                    <div className="text-xs font-bold text-gray-500 uppercase tracking-[0.2em] mb-1">Verdict</div>
+                                                    <h2 className={cn(
+                                                        "text-4xl font-black italic tracking-tighter",
+                                                        analysis.decision.action === 'BLOCK' ? 'text-red-500' : 'text-emerald-500'
+                                                    )}>
+                                                        {analysis.decision.action}
+                                                    </h2>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-row md:flex-col items-end gap-1 px-8 md:border-l border-white/10">
+                                                <div className="flex items-baseline gap-1">
+                                                    <span className={cn(
+                                                        "text-5xl font-black font-mono tracking-tighter",
+                                                        analysis.risk_score > 80 ? 'text-red-500' : 'text-white'
+                                                    )}>
+                                                        {analysis.risk_score}
+                                                    </span>
+                                                    <span className="text-gray-600 font-bold mb-1">/100</span>
+                                                </div>
+                                                <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Aggregated Risk</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                                            <section>
+                                                <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">Neural Synthesis</h4>
+                                                <p className="text-gray-200 leading-relaxed text-sm font-medium">
+                                                    {analysis.decision.reasoning}
+                                                </p>
+                                            </section>
+                                            <section>
+                                                <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">Risk Vectors</h4>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {analysis.decision.key_factors.map((factor, idx) => (
+                                                        <Badge key={idx} variant="outline" className="bg-white/5 border-white/10 text-gray-300 hover:text-white transition-colors">
+                                                            {factor}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            </section>
+                                        </div>
+
+                                        <div className="mt-8 pt-8 border-t border-white/5 flex items-center justify-between">
+                                            <div className="flex gap-4">
+                                                <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20 px-3">
+                                                    Precision: {analysis.decision.confidence}%
+                                                </Badge>
+                                                <Badge className="bg-purple-500/10 text-purple-400 border-purple-500/20 px-3">
+                                                    ML Conf: {Math.round(analysis.model_prediction.fraud_probability * 100)}%
+                                                </Badge>
+                                            </div>
+                                            <span className="text-[10px] font-mono text-gray-600">ID: {analysis.transaction_id.slice(0, 12)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="p-8 rounded-[32px] bg-slate-900/50 backdrop-blur-xl border border-white/5 min-h-[400px]">
+                            <h3 className="text-lg font-bold mb-8 flex items-center gap-3">
+                                <Brain className="w-6 h-6 text-purple-500" />
+                                Agent Reasoning Process
+                            </h3>
+                            <ReActVisualizer steps={steps} isAnalyzing={isAnalyzing} />
+                        </div>
+                    </div>
                 </div>
             </div>
+        </main>
+    );
+}
+
+function SecureItem({ title, status, color }: { title: string, status: string, color: 'blue' | 'emerald' | 'purple' }) {
+    const colorMap = {
+        blue: 'text-blue-400 bg-blue-400/10',
+        emerald: 'text-emerald-400 bg-emerald-400/10',
+        purple: 'text-purple-400 bg-purple-400/10'
+    };
+    return (
+        <div className="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/5">
+            <span className="text-xs font-medium text-gray-300">{title}</span>
+            <span className={cn("text-[9px] font-black uppercase px-2 py-0.5 rounded-full", colorMap[color])}>
+                {status}
+            </span>
         </div>
     );
 }

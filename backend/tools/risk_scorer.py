@@ -50,7 +50,28 @@ def calculate_risk_score(model_prediction: Dict[str, Any], anomalies: Dict[str, 
     
     rule_score = min(10, rule_score)
     
-    # Total
+    # 4. Nuclear Risk Logic (Override for extreme outliers)
+    amount_val = model_prediction.get('amount', 0)
+    z_score = amount_anom.get('z_score', 0)
+    
+    is_nuclear = False
+    if abs(z_score) > 1000: is_nuclear = True # Massive outlier
+    if amount_val > 100000: is_nuclear = True # Massive amount
+    
+    if is_nuclear:
+        total_score = 99
+        return {
+            'risk_score': 99,
+            'category': 'CRITICAL',
+            'breakdown': {
+                'model_score': int(model_score),
+                'anomaly_score': anomaly_score,
+                'business_score': rule_score,
+                'nuclear_override': True
+            },
+            'calculation_method': 'nuclear_saturation'
+        }
+
     total_score = int(min(100, base_score + anomaly_score + rule_score))
     
     return {
