@@ -184,6 +184,11 @@ class ReActOrchestrator:
                     "total_tokens_used": result.get("token_usage", {}).get("total_tokens", 0)
                 }
             }
+            
+            # Save Log for WebSocket flows
+            if settings.save_react_logs:
+                self._save_react_log(final_output["transaction_id"], final_output)
+                
             yield {"type": "complete", "analysis": final_output}
 
     def _save_react_log(self, transaction_id: str, data: Dict):
