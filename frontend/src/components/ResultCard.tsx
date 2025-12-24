@@ -82,19 +82,19 @@ export function ResultCard({ result }: Props) {
                         <div className="text-gray-500 flex items-center justify-center gap-1 mb-1">
                             <Activity className="w-3 h-3" /> Risk Score
                         </div>
-                        <div className="font-bold text-lg">{risk_score}/100</div>
+                        <div className="font-bold text-lg">{decision.risk_score || result.risk_score || 0}/100</div>
                     </div>
                     <div className="text-center p-2 bg-white/60 rounded-lg">
                         <div className="text-gray-500 flex items-center justify-center gap-1 mb-1">
                             <Clock className="w-3 h-3" /> Duration
                         </div>
-                        <div className="font-bold text-lg">{result.processing_time_ms}ms</div>
+                        <div className="font-bold text-lg">{result.metrics?.processing_time_ms || 0}ms</div>
                     </div>
                     <div className="text-center p-2 bg-white/60 rounded-lg">
                         <div className="text-gray-500 flex items-center justify-center gap-1 mb-1">
                             <Database className="w-3 h-3" /> Tokens
                         </div>
-                        <div className="font-bold text-lg">{result.total_tokens_used || result.llm_calls_made || 0}</div>
+                        <div className="font-bold text-lg">{result.metrics?.total_tokens_used || 0}</div>
                     </div>
                 </div>
             </CardContent>

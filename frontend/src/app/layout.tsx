@@ -9,10 +9,12 @@ export const metadata: Metadata = {
   description: "Real-time Agentic Fraud Analysis",
 };
 
+import { ReactNode } from "react";
+
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
   return (
     <html lang="en">

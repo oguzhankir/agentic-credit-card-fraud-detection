@@ -103,7 +103,7 @@ export default function Home() {
               <div className="bg-white rounded-lg shadow-sm border p-4 flex flex-col justify-center min-h-[200px]">
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide text-center mb-2">Risk Assessment</h2>
                 {finalResult ? (
-                  <RiskScoreGauge score={finalResult.risk_score} />
+                  <RiskScoreGauge score={finalResult.decision?.risk_score || finalResult.risk_score || 0} />
                 ) : (
                   <div className="text-center text-gray-400 text-sm flex flex-col items-center">
                     <div className="w-16 h-16 rounded-full bg-gray-100 mb-3" />

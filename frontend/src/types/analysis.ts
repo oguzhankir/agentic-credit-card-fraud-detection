@@ -45,11 +45,14 @@ export interface CompleteAnalysis {
         reasoning: string;
         confidence: number;
         key_factors: string[];
+        risk_score?: number; // Backend puts risk_score here sometimes
     };
-    risk_score: number;
-    processing_time_ms: number;
-    llm_calls_made?: number;
-    total_tokens_used: number;
+    // Backend sends these in a 'metrics' object
+    metrics?: {
+        processing_time_ms: number;
+        total_tokens_used: number;
+    };
+    risk_score?: number; // Fallback
 }
 
 /**

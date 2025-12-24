@@ -101,6 +101,9 @@ class ReActOrchestrator:
         queue = asyncio.Queue()
         callback = StreamingReActCallbackHandler(queue)
         
+        start_time = datetime.now()
+        result = None
+        
         # Function to run analysis in thread
         def run_analysis():
             try:
@@ -164,6 +167,24 @@ class ReActOrchestrator:
                 except Exception as e:
                     yield {"type": "error", "content": str(e)}
                     break
+        
+        # Calculate metrics after loop finishes
+        processing_time_ms = (datetime.now() - start_time).total_seconds() * 1000
+        
+        if result:
+            # Construct Final Response Object (mirrors run() logic)
+            final_output = {
+                "transaction_id": str(uuid.uuid4()), # New ID or reuse if transaction had one
+                "timestamp": datetime.now().isoformat(),
+                "input_transaction": transaction,
+                "decision": result.get("decision", {}),
+                "react_steps": result.get("react_steps", []),
+                "metrics": {
+                    "processing_time_ms": int(processing_time_ms),
+                    "total_tokens_used": result.get("token_usage", {}).get("total_tokens", 0)
+                }
+            }
+            yield {"type": "complete", "analysis": final_output}
 
     def _save_react_log(self, transaction_id: str, data: Dict):
         """

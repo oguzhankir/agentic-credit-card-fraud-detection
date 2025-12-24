@@ -11,8 +11,24 @@ services:
     volumes:
       - ./backend:/app/backend
       - ./ml-pipeline:/app/ml-pipeline
-    environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+
     env_file:
-      - backend/.env
+      - ./backend/.env
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+        NEXT_PUBLIC_WS_URL: ws://localhost:8000
+    container_name: fraud-detection-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_WS_URL=ws://localhost:8000
+    depends_on:
+      - backend
     restart: unless-stopped

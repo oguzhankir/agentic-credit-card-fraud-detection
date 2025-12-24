@@ -75,10 +75,10 @@ class StreamingReActCallbackHandler(BaseCallbackHandler):
         
         step_num = (self.step_count * 2) + 1
         
-        # Truncate
+        
+        # No Truncation as per user request
         content = str(output)
-        if len(content) > 500:
-            content = content[:500] + "... [truncated]"
+
 
         self.queue.put_nowait({
             "type": "observation",

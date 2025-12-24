@@ -4,3 +4,5 @@
 {"timestamp": "2025-12-24T11:16:57.689685", "method": "POST", "url": "http://localhost:8000/api/analyze", "status_code": 200, "duration_seconds": 7.1987}
 {"timestamp": "2025-12-24T11:19:59.548404", "method": "POST", "url": "http://localhost:8000/api/analyze", "status_code": 200, "duration_seconds": 17.0229}
 {"timestamp": "2025-12-24T11:21:34.792428", "method": "POST", "url": "http://127.0.0.1:8000/api/analyze", "status_code": 200, "duration_seconds": 18.1172}
+{"timestamp": "2025-12-24T12:30:20.935632", "method": "GET", "url": "http://localhost:8000/docs", "status_code": 200, "duration_seconds": 0.0004}
+{"timestamp": "2025-12-24T12:30:21.340565", "method": "GET", "url": "http://localhost:8000/openapi.json", "status_code": 200, "duration_seconds": 0.0163}
