@@ -5,6 +5,7 @@ from .base_agent import BaseAgent
 from .data_agent import DataAgent
 from .model_agent import ModelAgent
 from backend.config.langchain_config import COORDINATOR_SYSTEM_PROMPT
+from backend.tools.risk_scorer import calculate_risk_score_tool
 
 class CoordinatorAgent(BaseAgent):
     def __init__(self):
@@ -24,7 +25,7 @@ class CoordinatorAgent(BaseAgent):
             description="Useful for getting fraud probability and risk scores from the ML model. Input: Transaction/Feature JSON string."
         )
         
-        tools = [self.data_tool, self.model_tool]
+        tools = [self.data_tool, self.model_tool, calculate_risk_score_tool]
         super().__init__(name="coordinator", tools=tools, system_prompt=COORDINATOR_SYSTEM_PROMPT)
 
     def _call_data_agent(self, input_str: str) -> str:
@@ -41,8 +42,11 @@ class CoordinatorAgent(BaseAgent):
                 data = {"raw_input": input_str}
             
             result = self.data_agent.analyze(data)
-            # We return the 'output' (text summary) AND 'token_usage' implicitly tracked in self.data_agent
-            return result.get("output", "Data Agent analysis failed.")
+            # Return JSON so the LLM can extract raw values for the risk scorer
+            return json.dumps({
+                "summary": result.get("output", ""),
+                "raw_data": result.get("raw_results", {}) # We might need to make sure DataAgent returns this
+            }, default=str)
         except Exception as e:
             return f"Data Agent Error: {str(e)}"
 
@@ -55,7 +59,10 @@ class CoordinatorAgent(BaseAgent):
                 data = {"raw_input": input_str}
                 
             result = self.model_agent.analyze(data)
-            return result.get("output", "Model Agent analysis failed.")
+            return json.dumps({
+                "summary": result.get("output", ""),
+                "raw_data": result.get("raw_results", {})
+            }, default=str)
         except Exception as e:
             return f"Model Agent Error: {str(e)}"
     

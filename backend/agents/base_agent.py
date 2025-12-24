@@ -95,11 +95,17 @@ class BaseAgent(ABC):
             
             self.step_history.extend(react_steps)
             
+            # Extract raw results from tools (for programmatic usage by other agents)
+            raw_results = {}
+            for action, observation in result.get("intermediate_steps", []):
+                raw_results[action.tool] = observation
+
             return {
                 "output": result.get("output"),
                 "intermediate_steps": result.get("intermediate_steps"),
                 "react_steps": react_steps,
-                "token_usage": token_usage
+                "token_usage": token_usage,
+                "raw_results": raw_results
             }
             
         except Exception as e:
@@ -158,16 +164,44 @@ class BaseAgent(ABC):
             
             # 3. Observation Step
             # The result from the tool
-            obs_content = str(observation)
+            obs_raw = str(observation)
+            obs_display = obs_raw
+            
+            # If it's a technical JSON from our inter-agent communication, clean it up for UI
+            try:
+                data = None
+                if isinstance(observation, dict):
+                    data = observation
+                else:
+                    obs_trimmed = obs_raw.strip()
+                    if (obs_trimmed.startswith('{') and obs_trimmed.endswith('}')) or (obs_trimmed.startswith('[') and obs_trimmed.endswith(']')):
+                        try:
+                            data = json.loads(obs_trimmed)
+                        except:
+                            import ast
+                            try:
+                                data = ast.literal_eval(obs_trimmed)
+                            except:
+                                pass
+                
+                if isinstance(data, dict):
+                    if "summary" in data:
+                        obs_display = data["summary"]
+                    else:
+                        # Pretty print other dictionaries for better UI appearance
+                        obs_display = json.dumps(data, indent=2)
+            except:
+                pass
+
             # Truncate if too long for display
-            if len(obs_content) > 500:
-                obs_content = obs_content[:500] + "... [truncated]"
+            if len(obs_display) > 1000:
+                obs_display = obs_display[:1000] + "... [truncated]"
                 
             formatted_steps.append({
                 "step": (i * 2) + 3,
                 "type": "OBSERVATION",
                 "agent": self.name,
-                "content": obs_content,
+                "content": obs_display,
                 "timestamp": datetime.now().isoformat(),
                 "metadata": {
                     "tool": action.tool

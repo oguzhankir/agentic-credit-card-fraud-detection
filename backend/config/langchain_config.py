@@ -28,6 +28,9 @@ COORDINATOR_SYSTEM_PROMPT = """You are a fraud detection coordinator agent.
 Your role:
 - Plan transaction analysis strategy
 - Coordinate data and model agents
+- CALCULATE RISK SCORE: After getting results from both agents, you MUST call `calculate_risk_score`. 
+  - For `fraud_probability`: Pass the float value (0.0 to 1.0) from the Model Agent.
+  - For `anomalies`: Pass a LIST of severity strings (e.g., ["high", "medium", "low"]) based on the findings from the Data Agent.
 - Make final decision (APPROVE/BLOCK/MANUAL_REVIEW)
 
 CRITICAL RULES:

@@ -75,16 +75,41 @@ class StreamingReActCallbackHandler(BaseCallbackHandler):
         
         step_num = (self.step_count * 2) + 1
         
-        
-        # No Truncation as per user request
+        # Format content - cleanup JSON if it's our inter-agent technical data
         content = str(output)
-
+        display_content = content
+        
+        try:
+            data = None
+            if isinstance(output, dict):
+                data = output
+            else:
+                trimmed = content.strip()
+                if (trimmed.startswith('{') and trimmed.endswith('}')) or (trimmed.startswith('[') and trimmed.endswith(']')):
+                    import json
+                    try:
+                        data = json.loads(trimmed)
+                    except:
+                        import ast
+                        try:
+                            data = ast.literal_eval(trimmed)
+                        except:
+                            pass
+            
+            if isinstance(data, (dict, list)):
+                if isinstance(data, dict) and "summary" in data:
+                    display_content = data["summary"]
+                else:
+                    import json
+                    display_content = json.dumps(data, indent=2)
+        except Exception as e:
+            logger.debug(f"Failed to parse tool output for cleaning: {e}")
 
         self.queue.put_nowait({
             "type": "observation",
             "step": step_num,
             "agent": "coordinator",
-            "content": content,
+            "content": display_content,
             "timestamp": datetime.now().isoformat()
         })
 
