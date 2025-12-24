@@ -1,19 +1,6 @@
-{
-  "daily": {
-    "2025-12-21": {
-      "total_calls": 13,
-      "total_tokens": 4502,
-      "estimated_cost": 0.003774,
-      "by_agent": {
-        "coordinator": 13
-      },
-      "by_purpose": {
-        "PLANNING": 4,
-        "INTERPRETATION": 8,
-        "DECISION": 1
-      }
-    }
-  },
-  "weekly": {},
-  "monthly": {}
-}
+{"timestamp": "2025-12-24T11:10:18.038496", "method": "POST", "url": "http://localhost:8000/api/analyze", "status_code": 200, "duration_seconds": 6.7974}
+{"timestamp": "2025-12-24T11:12:40.868215", "method": "POST", "url": "http://127.0.0.1:8000/api/analyze", "status_code": 200, "duration_seconds": 7.3121}
+{"timestamp": "2025-12-24T11:16:30.644241", "method": "POST", "url": "http://localhost:8000/api/analyze", "status_code": 200, "duration_seconds": 7.1833}
+{"timestamp": "2025-12-24T11:16:57.689685", "method": "POST", "url": "http://localhost:8000/api/analyze", "status_code": 200, "duration_seconds": 7.1987}
+{"timestamp": "2025-12-24T11:19:59.548404", "method": "POST", "url": "http://localhost:8000/api/analyze", "status_code": 200, "duration_seconds": 17.0229}
+{"timestamp": "2025-12-24T11:21:34.792428", "method": "POST", "url": "http://127.0.0.1:8000/api/analyze", "status_code": 200, "duration_seconds": 18.1172}

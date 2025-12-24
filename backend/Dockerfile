@@ -1,23 +1,23 @@
+# Use an official Python runtime as a parent image
 FROM python:3.9-slim
 
+# Set the working directory in the container
 WORKDIR /app
 
-# Install system dependencies (for building some wheels)
-RUN apt-get update && apt-get install -y gcc g++ libgomp1 && rm -rf /var/lib/apt/lists/*
+# Copy the requirements file into the container at /app
+COPY requirements.txt .
 
-# Install python dependencies
-COPY backend/requirements.txt requirements.txt
+# Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend code
-# Note: We copy to /app/backend to match python module structure
-COPY backend /app/backend
+# Copy the current directory contents into the container at /app
+COPY . .
 
-# Models are expected at /app/backend/models. 
-# In docker-compose we'll mount them or they should be copied
-# COPY backend/models /app/backend/models
+# Expose port 8000
+EXPOSE 8000
 
-# Set path
+# Define environment variable
 ENV PYTHONPATH=/app
 
+# Run uvicorn server
 CMD ["uvicorn", "backend.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

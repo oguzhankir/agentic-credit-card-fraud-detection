@@ -3,24 +3,16 @@ version: '3.8'
 services:
   backend:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fraud-detection-backend
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app/backend
-      - ./backend/models:/app/backend/models
+      - ./ml-pipeline:/app/ml-pipeline
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     env_file:
       - backend/.env
-    restart: always
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-    depends_on:
-      - backend
+    restart: unless-stopped

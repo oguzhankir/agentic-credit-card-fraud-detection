@@ -1,199 +1,184 @@
 from abc import ABC, abstractmethod
-from langchain.agents import AgentExecutor, create_openai_functions_agent
-from langchain_openai import ChatOpenAI
-from backend.config.langchain_config import get_llm
 from typing import List, Dict, Any
+from langchain.agents import AgentExecutor, create_openai_functions_agent
+from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_community.callbacks import get_openai_callback
+from backend.config.langchain_config import get_llm
 import logging
+import json
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 class BaseAgent(ABC):
-    """Base class for all fraud detection agents"""
-    
-    def __init__(self, name: str, tools: List, prompt_template):
+    def __init__(self, name: str, tools: List, system_prompt: str):
         """
-        Initialize base agent
+        Initialize base agent with LangChain components.
         
         Args:
-            name: Agent name (coordinator, data, model)
+            name: Agent identifier (coordinator, data, model)
             tools: List of LangChain tools
-            prompt_template: ChatPromptTemplate for this agent
+            system_prompt: System prompt string for this agent
         """
         self.name = name
         self.tools = tools
-        self.llm = get_llm(temperature=0.3)
+        self.llm = get_llm()
+        self.step_history = []
+        
+        # Define prompt structure
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", system_prompt),
+            ("user", "{input}"),
+            MessagesPlaceholder(variable_name="agent_scratchpad"),
+        ])
         
         # Create LangChain agent
         self.agent = create_openai_functions_agent(
             llm=self.llm,
             tools=self.tools,
-            prompt=prompt_template
+            prompt=prompt
         )
         
-        # Create executor
+        # Create executor with ReAct logging
         self.agent_executor = AgentExecutor(
             agent=self.agent,
             tools=self.tools,
             verbose=True,
-            return_intermediate_steps=True,
-            max_iterations=5,
-            early_stopping_method="generate",
+            return_intermediate_steps=True,  # CRITICAL for ReAct logging!
+            max_iterations=10,
             handle_parsing_errors=True
         )
-        
-        self.step_history = []
     
-    
-    def execute(self, input_text: str, context: Dict = None) -> Dict:
+    def execute(self, input_text: str, callbacks: List = None) -> Dict[str, Any]:
         """
-        Execute agent with input
+        Execute agent and capture ReAct steps.
         
         Args:
-            input_text: User input/query
-            context: Additional context (optional)
+            input_text: Natural language task description
             
         Returns:
-            Dict with output and intermediate steps
+            Dictionary containing:
+            - output: Final agent answer
+            - intermediate_steps: Raw steps
+            - react_steps: Formatted steps for frontend
         """
-        try:
-            # Invoke agent
-            result = self.agent_executor.invoke({
-                "input": input_text,
-                "chat_history": []
-            })
-            
-            # Log steps
-            self._log_steps(result.get("intermediate_steps", []))
-            
-            return {
-                "output": result["output"],
-                "steps": self._format_steps(result.get("intermediate_steps", [])),
-                "raw_result": result
-            }
-            
-        except Exception as e:
-            logger.error(f"{self.name} agent failed: {e}", exc_info=True)
-            return {
-                "output": f"Error: {str(e)}",
-                "steps": [],
-                "error": str(e)
-            }
-
-    async def aexecute(self, input_text: str, callbacks: List = None) -> Dict:
-        """
-        Async execute agent with input and callbacks
-        """
-        try:
-            # Invoke agent async
-            result = await self.agent_executor.ainvoke(
-                {
-                    "input": input_text,
-                    "chat_history": []
-                },
-                config={"callbacks": callbacks} if callbacks else None
-            )
-            
-            # Log steps (still useful for history)
-            self._log_steps(result.get("intermediate_steps", []))
-            
-            return {
-                "output": result["output"],
-                "steps": self._format_steps(result.get("intermediate_steps", [])),
-                "raw_result": result
-            }
-            
-        except Exception as e:
-            logger.error(f"{self.name} agent async failed: {e}", exc_info=True)
-            return {
-                "output": f"Error: {str(e)}",
-                "steps": [],
-                "error": str(e)
-            }
-    
-    def _log_steps(self, intermediate_steps):
-        """Log intermediate steps to history"""
-        for action, observation in intermediate_steps:
-            self.step_history.append({
-                "agent": self.name,
-                "action": action.tool,
-                "input": action.tool_input,
-                "observation": str(observation),
-                "timestamp": datetime.now().isoformat()
-            })
-    
-    def _format_steps(self, intermediate_steps) -> List[Dict]:
-        """Format steps for ReAct visualization"""
-        formatted = []
-        step_num = 1
+        logger.info(f"Agent {self.name} executing: {input_text[:50]}...")
         
-        for action, observation in intermediate_steps:
-            # Extract thought from log
-            thought = action.log.split("Action:")[0].replace("Thought:", "").strip()
+        try:
+            # Invoke agent with callback for token tracking
+            with get_openai_callback() as cb:
+                run_callbacks = [cb]
+                if callbacks:
+                    run_callbacks.extend(callbacks)
+                    
+                result = self.agent_executor.invoke({"input": input_text}, config={"callbacks": run_callbacks})
+                token_usage = {
+                    "total_tokens": cb.total_tokens,
+                    "prompt_tokens": cb.prompt_tokens,
+                    "completion_tokens": cb.completion_tokens,
+                    "total_cost": cb.total_cost
+                }
             
-            # THOUGHT
-            formatted.append({
-                "step": step_num,
+            # Format steps
+            react_steps = self._format_react_steps(result.get("intermediate_steps", []))
+            
+            # Add final answer as a step
+            react_steps.append({
+                "step": len(react_steps) + 1,
+                "type": "DECISION",
+                "agent": self.name,
+                "content": result.get("output", ""),
+                "timestamp": datetime.now().isoformat(),
+                "metadata": {"status": "complete"}
+            })
+            
+            self.step_history.extend(react_steps)
+            
+            return {
+                "output": result.get("output"),
+                "intermediate_steps": result.get("intermediate_steps"),
+                "react_steps": react_steps,
+                "token_usage": token_usage
+            }
+            
+        except Exception as e:
+            logger.error(f"Agent execution failed: {e}", exc_info=True)
+            return {
+                "output": f"Error: {str(e)}",
+                "intermediate_steps": [],
+                "react_steps": [],
+                "token_usage": {"total_tokens": 0}
+            }
+    
+    def _format_react_steps(self, intermediate_steps: List) -> List[Dict]:
+        """
+        Convert LangChain intermediate steps to ReAct format.
+        
+        Args:
+            intermediate_steps: List of (AgentAction, Observation) tuples
+            
+        Returns:
+            List of formatted step dictionaries
+        """
+        formatted_steps = []
+        
+        for i, (action, observation) in enumerate(intermediate_steps):
+            # 1. Thought/Action Step
+            # LangChain AgentAction object contains 'tool', 'tool_input', 'log'
+            # 'log' usually contains the Thought + Action instructions from LLM
+            
+            # Clean up the log to represent "Thought"
+            thought_content = action.log.split("\n")[0] if action.log else f"Planning to use {action.tool}"
+            
+            formatted_steps.append({
+                "step": (i * 2) + 1,
                 "type": "THOUGHT",
                 "agent": self.name,
-                "content": thought,
+                "content": thought_content,
                 "timestamp": datetime.now().isoformat(),
                 "metadata": {
-                    "llm_used": True,
-                    "llm_purpose": "PLANNING"
-                }
-            })
-            step_num += 1
-            
-            # ACTION
-            formatted.append({
-                "step": step_num,
-                "type": "ACTION",
-                "agent": self.name,
-                "content": f"Using tool: {action.tool}",
-                "timestamp": datetime.now().isoformat(),
-                "metadata": {
-                    "llm_used": False,
                     "tool": action.tool,
                     "tool_input": action.tool_input
                 }
             })
-            step_num += 1
             
-            # OBSERVATION
-            formatted.append({
-                "step": step_num,
-                "type": "OBSERVATION",
+            # 2. Action Execution Step (Implicit in LangChain, but visualized as Action)
+            formatted_steps.append({
+                "step": (i * 2) + 2,
+                "type": "ACTION",
                 "agent": self.name,
-                "content": str(observation),
+                "content": f"Calling tool: {action.tool}",
                 "timestamp": datetime.now().isoformat(),
                 "metadata": {
-                    "llm_used": False
+                    "tool": action.tool,
+                    "tool_input": str(action.tool_input)
                 }
             })
-            step_num += 1
-        
-        return formatted
-    
-    def get_history(self) -> List[Dict]:
-        """Get full step history"""
-        return self.step_history
-    
-    def clear_history(self):
-        """Clear step history"""
-        self.step_history = []
+            
+            # 3. Observation Step
+            # The result from the tool
+            obs_content = str(observation)
+            # Truncate if too long for display
+            if len(obs_content) > 500:
+                obs_content = obs_content[:500] + "... [truncated]"
+                
+            formatted_steps.append({
+                "step": (i * 2) + 3,
+                "type": "OBSERVATION",
+                "agent": self.name,
+                "content": obs_content,
+                "timestamp": datetime.now().isoformat(),
+                "metadata": {
+                    "tool": action.tool
+                }
+            })
+            
+        return formatted_steps
     
     @abstractmethod
-    def analyze(self, **kwargs) -> Dict:
+    def analyze(self, data: Dict) -> Dict:
         """
-        Main analysis method - must be implemented by subclasses
+        Main analysis method - must be implemented by subclasses.
         """
-        pass
-
-    async def analyze_async(self, **kwargs) -> Dict:
-        """
-        Async analysis method - optional override
-        """
-        # Default fallback to sync wrapped in thread? No, best to force implement or leave empty
-        # For now, let's just abstract it or let subclasses implement
         pass

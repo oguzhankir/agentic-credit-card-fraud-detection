@@ -1,45 +1,33 @@
-from fastapi import APIRouter, HTTPException, Request
-from backend.api.models.transaction import TransactionInput
-from backend.api.models.analysis_response import AnalysisResponse
-from backend.services.react_engine import ReActEngine
+from fastapi import APIRouter, HTTPException, BackgroundTasks
+from backend.api.schemas.transaction import TransactionInput
+from backend.api.schemas.response import AnalysisResponse
+from backend.services.react_orchestrator import ReActOrchestrator
 import logging
 
+router = APIRouter()
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/transactions", tags=["transactions"])
+orchestrator = ReActOrchestrator()
 
 @router.post("/analyze", response_model=AnalysisResponse)
 async def analyze_transaction(
     transaction: TransactionInput,
-    request: Request
+    background_tasks: BackgroundTasks
 ):
+    """
+    Trigger Agentic Fraud Analysis for a transaction.
+    """
     try:
-        # Get engine
-        engine = ReActEngine()
+        # Convert Pydantic model to dict
+        transaction_dict = transaction.model_dump()
         
-        # Parse inputs
-        tx_dict = transaction.dict()
-        cust_history = tx_dict.pop('customer_history', {}) or {}
-        connection_id = tx_dict.pop('connection_id', None)
+        # Run Synchronous Analysis (for this v1 implementation)
+        # In a high-scale real app, we'd push to a queue and return ID, 
+        # but for this demo/MVP we wait for result (~5-10s).
+        result = orchestrator.run(transaction_dict)
         
-        callbacks = []
-        if connection_id:
-            from backend.services.callbacks import WebSocketCallbackHandler
-            
-            # Access WS manager from app state
-            ws_manager = request.app.state.ws_manager
-            
-            # Create callback
-            ws_callback = WebSocketCallbackHandler(ws_manager, connection_id)
-            callbacks.append(ws_callback)
-        
-        # Run analysis ASYNC
-        result = await engine.arun(tx_dict, cust_history, callbacks=callbacks)
-        
-        # Return
-        return AnalysisResponse(**result)
+        return result
         
     except Exception as e:
-        logger.error(f"Analysis failed: {e}", exc_info=True)
+        logger.error(f"Analysis request failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-

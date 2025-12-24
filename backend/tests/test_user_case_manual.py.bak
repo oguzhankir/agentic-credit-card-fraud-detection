@@ -1,0 +1,94 @@
+import sys
+import os
+import json
+import logging
+
+# Add project root to path (parent of backend)
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+
+from backend.tools.feature_engineer import engineer_features_tool
+from backend.tools.anomaly_detector import detect_anomalies_tool
+from backend.tools.model_predictor import predict_fraud_tool
+from backend.tools.risk_scorer import calculate_risk_score_tool
+
+# Configure logger to see tool outputs
+logging.basicConfig(level=logging.INFO)
+
+def verify_with_user_case():
+    print("Testing with User-Provided Transaction Case...")
+
+    # User's test case (from prompt)
+    test_tx = {
+        "trans_date_trans_time": "2020-12-22 23:13:39",
+        "cc_num": 2242176657877538,
+        "merchant": "fraud_Jaskolski-Vandervort",
+        "category": "misc_net",
+        "amt": 766.38,
+        "first": "Travis",
+        "last": "Daniel",
+        "gender": "M",
+        "street": "1327 Rose Causeway Apt. 610",
+        "city": "Unknown",
+        "state": "Unknown",
+        "zip": "00000",
+        "lat": 34.6323,
+        "long": -89.8855,
+        "city_pop": 14462,
+        "job": "Database administrator",
+        "dob": "1959-03-03",
+        "trans_num": "44292cbc51e37dc018ee6a988a4bc426",
+        "unix_time": 1387754019,
+        "merch_lat": 33.771462,
+        "merch_long": -90.651342,
+        # "is_fraud": 1 # Removed as it's target
+    }
+
+    # 1. Feature Engineering
+    print("\n--- 1. Feature Engineering ---")
+    try:
+        features = engineer_features_tool.invoke(test_tx)
+        print("✅ Features extracted.")
+        # Check specific calculated values against expected intuition
+        print(f"Distance: {features.get('distance_km', 0):.2f} km")
+        print(f"Is Night: {features.get('is_night')}")
+        print(f"Log Amt: {features.get('log_amt', 0):.2f}")
+    except Exception as e:
+        print(f"❌ Feature Engineering failed: {e}")
+        return
+
+    # 2. Anomaly Detection
+    print("\n--- 2. Anomaly Detection ---")
+    try:
+        anomalies = detect_anomalies_tool.invoke({"features": features})
+        print("✅ Anomalies detected:")
+        print(json.dumps(anomalies, indent=2))
+    except Exception as e:
+        print(f"❌ Anomaly Detection failed: {e}")
+
+    # 3. Model Prediction
+    print("\n--- 3. Model Prediction ---")
+    try:
+        # This will verify if LeakFreePreprocessor loads correctly
+        pred = predict_fraud_tool.invoke({"features": features})
+        
+        if "error" in pred:
+            print(f"❌ Prediction Error: {pred['error']}")
+        else:
+            print("✅ Prediction successful:")
+            print(f"Fraud Prob: {pred['fraud_probability']:.4f}")
+            print(f"Prediction: {pred['prediction']}")
+            print(f"Model: {pred['model_name']}")
+    except Exception as e:
+        print(f"❌ Prediction Tool Exception: {e}")
+
+    # 4. Risk Scoring
+    print("\n--- 4. Risk Scoring ---")
+    try:
+        risk = calculate_risk_score_tool.invoke({"model_prediction": pred, "anomalies": anomalies})
+        print("✅ Risk Score calculated:")
+        print(f"Score: {risk['risk_score']} ({risk['category']})")
+    except Exception as e:
+         print(f"❌ Risk Scoring failed: {e}")
+
+if __name__ == "__main__":
+    verify_with_user_case()

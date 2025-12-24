@@ -3,8 +3,8 @@ import json
 import os
 
 # Path to data
-DATA_PATH = "ml-pipeline/data/raw/fraudTrain.csv"
-OUTPUT_DIR = "backend/tools/artifacts"
+DATA_PATH = "/Users/oguz/Desktop/agentic-credit-card-fraud-detection/ml-pipeline/data/raw/fraudTrain.csv"
+OUTPUT_DIR = "/Users/oguz/Desktop/agentic-credit-card-fraud-detection/backend/tools/artifacts"
 
 # Ensure output dir exists
 os.makedirs(OUTPUT_DIR, exist_ok=True)

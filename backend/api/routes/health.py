@@ -1,16 +1,8 @@
-from fastapi import APIRouter, Request
-from datetime import datetime
+from fastapi import APIRouter
 
-router = APIRouter(prefix="/api/health", tags=["health"])
+router = APIRouter()
 
-@router.get("")
-async def health_check(request: Request):
-    return {
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
-        "service": "Fraud Detection Agentic AI",
-        "checks": {
-            "model_service_ready": True, 
-            "llm_service_ready": True
-        }
-    }
+@router.get("/health")
+async def health_check():
+    """Basic health check."""
+    return {"status": "ok", "service": "fraud-detection-backend"}

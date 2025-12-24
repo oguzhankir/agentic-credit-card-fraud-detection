@@ -1,110 +1,91 @@
 from langchain.tools import tool
-from pydantic import BaseModel, Field
+from langchain_core.pydantic_v1 import BaseModel, Field
 
 class RiskScorerInput(BaseModel):
-    model_prediction: Dict[str, Any] = Field(description="Prediction output from model_predictor")
-    anomalies: Dict[str, Any] = Field(description="Anomaly detection results")
-    business_rules: Dict[str, bool] = Field(default={}, description="Applied business rules")
+    """Input schema for risk scorer"""
+    # Flattened inputs for easier LLM usage
+    fraud_probability: float = Field(None, description="Probability from model (0-1)")
+    anomalies: dict = Field(None, description="Anomalies dictionary from detection step")
+    
+    class Config:
+        extra = "allow"
 
 @tool("calculate_risk_score", args_schema=RiskScorerInput)
-def calculate_risk_score(model_prediction: Dict[str, Any], anomalies: Dict[str, Any], business_rules: Dict[str, bool] = None) -> Dict[str, Any]:
+def calculate_risk_score_tool(
+    fraud_probability: float = None,
+    anomalies: dict = None,
+    **kwargs
+) -> dict:
     """
-    Calculate 0-100 risk score based on weighted factors.
-    """
-    if business_rules is None:
-        business_rules = {}
-
-    # 1. Base Score from Model (Max 50)
-    # fraud_probability is 0.0 to 1.0
-    prob = model_prediction.get('fraud_probability', 0.0)
-    base_score = prob * 50
+    Calculate final risk score (0-100) from model and anomalies.
     
-    # 2. Anomaly Penalties (Max 40)
+    Args:
+        fraud_probability: Model probability
+        anomalies: Anomalies dict
+        **kwargs: Fallback for loose args
+        
+    Returns:
+        Risk score and category
+    """
+    # Handle inputs
+    if fraud_probability is None:
+        # Check if passed as model_prediction dict
+        model_pred = kwargs.get('model_prediction', {})
+        fraud_probability = model_pred.get('fraud_probability', 0.0)
+    
+    if anomalies is None:
+         anomalies = kwargs.get('anomalies', {})
+         
+    # 1. Base Score from Model (0-50)
+    base_score = fraud_probability * 50
+    
+    # 2. Anomaly Penalties (0-40)
     anomaly_score = 0
+    # anomalies output has 'anomalies' key wrapping the content
+    anomaly_details = anomalies.get('anomalies', {})
     
-    # Amount
-    amt = anomalies.get('amount', {})
-    if amt.get('is_anomaly'):
-        sev = amt.get('severity', 'low')
-        anomaly_score += 15 if sev == 'high' else 10 if sev == 'medium' else 5
-        
-    # Time
-    time = anomalies.get('time', {})
-    if time.get('is_anomaly'):
-        anomaly_score += 10
-        
-    # Location
-    loc = anomalies.get('location', {})
-    if loc.get('is_anomaly'):
-        sev = loc.get('severity', 'low')
-        anomaly_score += 15 if sev == 'high' else 10
-        
-    # Cap anomaly score
+    severities = []
+    
+    for anomaly_type, data in anomaly_details.items():
+        if isinstance(data, dict) and data.get('is_anomaly'):
+            sev = data.get('severity', 'low')
+            severities.append(sev)
+            
+            if sev == 'high':
+                anomaly_score += 20
+            elif sev == 'medium':
+                anomaly_score += 10
+            else:
+                anomaly_score += 5
+                
+    # Cap anomaly score at 40
     anomaly_score = min(40, anomaly_score)
     
-    # 3. Business Rules (Max 10)
-    rule_score = 0
-    # Example rules passed in
-    if business_rules.get('high_amount'): rule_score += 10
-    if business_rules.get('new_customer'): rule_score += 5
+    # 3. Business Rules / Heuristics (0-10)
+    business_score = 0
+    if 'high' in severities and len([s for s in severities if s in ['high', 'medium']]) >= 2:
+        business_score += 10
     
-    rule_score = min(10, rule_score)
+    # Total Calculation
+    total_score = base_score + anomaly_score + business_score
+    total_score = min(100, total_score) # Cap at 100
     
-    # 4. Nuclear Risk Logic (Override for extreme outliers)
-    amount_val = model_prediction.get('amount', 0)
-    z_score = amount_anom.get('z_score', 0)
-    
-    is_nuclear = False
-    if abs(z_score) > 1000: is_nuclear = True # Massive outlier
-    if amount_val > 100000: is_nuclear = True # Massive amount
-    
-    if is_nuclear:
-        total_score = 99
-        return {
-            'risk_score': 99,
-            'category': 'CRITICAL',
-            'breakdown': {
-                'model_score': int(model_score),
-                'anomaly_score': anomaly_score,
-                'business_score': rule_score,
-                'nuclear_override': True
-            },
-            'calculation_method': 'nuclear_saturation'
-        }
-
-    total_score = int(min(100, base_score + anomaly_score + rule_score))
+    # Categorize
+    if total_score >= 85:
+        category = 'CRITICAL'
+    elif total_score >= 60:
+        category = 'HIGH'
+    elif total_score >= 30:
+        category = 'MEDIUM'
+    else:
+        category = 'LOW'
     
     return {
-        'risk_score': total_score,
-        'category': categorize_risk(total_score),
+        'risk_score': int(total_score),
+        'category': category,
         'breakdown': {
-            'model_score': round(base_score, 1),
-            'anomaly_score': anomaly_score,
-            'business_score': rule_score
-        },
-        'calculation_method': 'weighted_sum'
+            'model_contribution': int(base_score),
+            'anomaly_contribution': int(anomaly_score),
+            'business_rules_contribution': int(business_score)
+        }
     }
-
-def categorize_risk(score: int) -> str:
-    if score <= 30: return 'LOW'
-    elif score <= 60: return 'MEDIUM'
-    elif score <= 85: return 'HIGH'
-    else: return 'CRITICAL'
-
-def apply_business_rules(transaction: Dict[str, Any], customer_history: Dict[str, Any]) -> Dict[str, bool]:
-    """Check explicit business rules."""
-    rules = {}
-    
-    # Rule 1: High Amount > 5000
-    if transaction.get('amount', 0) > 5000:
-        rules['high_amount'] = True
-        
-    # Rule 2: High Risk Category
-    if transaction.get('category') in ['shopping_net', 'misc_net', 'entertainment']:
-        rules['video_game_or_net'] = True
-        
-    # Rule 3: New Customer (if history suggests)
-    if customer_history.get('transaction_count', 100) < 5:
-        rules['new_customer'] = True
-        
-    return rules

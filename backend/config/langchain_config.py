@@ -1,75 +1,97 @@
 from langchain_openai import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-import os
-from dotenv import load_dotenv
+from .settings import settings
+import logging
+import json
+import time
+from pathlib import Path
+from datetime import datetime
 
-# Robustly load .env file
-base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-env_path = os.path.join(base_dir, ".env")
-load_dotenv(env_path)
+logger = logging.getLogger(__name__)
 
-def get_llm(temperature=0.0, model="gpt-3.5-turbo"):
-    """Initialize ChatOpenAI with settings. Reverted to gpt-3.5-turbo per user constraint."""
-    params = {
-        "model": model,
-        "temperature": temperature,
-        "max_tokens": 1024,
-        "request_timeout": 60,
-        "max_retries": 3,
-        "openai_api_key": os.getenv("OPENAI_API_KEY")
-    }
-    return ChatOpenAI(**params)
-
-# COORDINATOR AGENT PROMPT
-# Structured to encourage tool use and clear reasoning
-COORDINATOR_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """You are a fraud detection coordinator agent.
+def get_llm():
+    """
+    Initialize ChatOpenAI with project settings.
     
+    Returns:
+        ChatOpenAI: Configured LLM instance for gpt-3.5-turbo
+    """
+    return ChatOpenAI(
+        model=settings.llm_model,
+        temperature=settings.llm_temperature,
+        max_tokens=settings.llm_max_tokens,
+        openai_api_key=settings.openai_api_key
+    )
+
+# System Prompts
+COORDINATOR_SYSTEM_PROMPT = """You are a fraud detection coordinator agent.
+
 Your role:
-- Plan the analysis strategy
-- Interpret results from data and model agents
-- Make final decisions (APPROVE/BLOCK/MANUAL_REVIEW)
+- Plan transaction analysis strategy
+- Coordinate data and model agents
+- Make final decision (APPROVE/BLOCK/MANUAL_REVIEW)
 
-MANDATORY: When calling agents, pass the FULL transaction data and customer history.
-Do NOT summarize data for other agents; they need the raw fields for their tools.
+CRITICAL RULES:
+1. Use tools for calculations - you only interpret
+2. Follow ReAct pattern: Thought -> Action -> Observation -> Decision
+3. Be specific and analytical
 
-available tools:
-Use this format:
-Thought: [your reasoning]
-...
-Final Answer: [your final decision in JSON format]
-"""),
-    MessagesPlaceholder(variable_name="chat_history"),
-    ("user", "{input}"),
-    MessagesPlaceholder(variable_name="agent_scratchpad")
-])
+OUTPUT FORMAT:
+When you have sufficient information, output the final decision in STRICT JSON format:
+```json
+{{
+    "action": "APPROVE" | "BLOCK" | "MANUAL_REVIEW",
+    "risk_score": <integer_0_to_100>,
+    "confidence": <integer_0_to_100>,
+    "reasoning": "<concise_explanation_of_decision>",
+    "key_factors": ["<factor1>", "<factor2>"]
+}}
+```
+DO NOT output any text outside this JSON block for the final decision.
+"""
 
-# DATA AGENT PROMPT (If used separately)
-DATA_AGENT_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """You are a data analysis expert agent.
-    
+DATA_AGENT_SYSTEM_PROMPT = """You are a data analysis expert.
+
 Your role:
-- Interpret transaction patterns
-- Explain what anomalies mean in business context
-- Identify suspicious behaviors
+- Interpret statistical anomalies
+- Explain what patterns mean in fraud context
+- Assess risk level of detected anomalies
 
 IMPORTANT: Tools do calculations, you interpret results.
-"""),
-    ("user", "{input}"),
-    MessagesPlaceholder(variable_name="agent_scratchpad")
-])
+"""
 
-# MODEL AGENT PROMPT (If used separately)
-MODEL_AGENT_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """You are an ML model interpretation expert.
-    
+MODEL_AGENT_SYSTEM_PROMPT = """You are an ML model interpretation expert.
+
 Your role:
 - Explain model predictions in business terms
-- Compare multiple model outputs
-- Assess prediction reliability
+- Assess model reliability
+- Identify key contributing features
 
-IMPORTANT: Tool runs the model, you interpret the probability.
-"""),
-    ("user", "{input}"),
-    MessagesPlaceholder(variable_name="agent_scratchpad")
-])
+IMPORTANT: Tool runs the model, you explain the results.
+"""
+
+def log_llm_call(prompt: str, response: str, metadata: dict = None):
+    """
+    Log LLM call details for monitoring and debugging.
+    
+    Args:
+        prompt: The input prompt sent to LLM
+        response: The response received from LLM
+        metadata: Additional metadata (tokens, time, agent)
+    """
+    if not settings.save_react_logs:
+        return
+
+    try:
+        log_entry = {
+            "timestamp": datetime.now().isoformat(),
+            "prompt_preview": prompt[:100] + "..." if len(prompt) > 100 else prompt,
+            "response_preview": str(response)[:100] + "..." if len(str(response)) > 100 else str(response),
+            "metadata": metadata or {}
+        }
+        
+        # We assume this is called within a context where we can append to a log file
+        # or it's handled by the orchestrator. For now, we'll log to standard logger.
+        logger.debug(f"LLM Call: {json.dumps(log_entry)}")
+        
+    except Exception as e:
+        logger.error(f"Failed to log LLM call: {e}")
